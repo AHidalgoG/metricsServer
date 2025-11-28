@@ -1,23 +1,25 @@
 package com.example.metricsserver;
 
-// MetricDto.java
+import com.google.gson.annotations.SerializedName;
+
 public class MetricDto {
-    private String machineId;
-    private String timestamp; // luego puedes mapear a LocalDateTime
+
+    //usará cualquiera de las 4 opciones para leer el json.
+    @SerializedName(value = "timestamp", alternate = {"tsUtc", "time", "date"})
+    private String timestamp;
+
+    @SerializedName(value = "cpuUsage", alternate = {"cpu", "cpuTotal"}) // Agregué cpuTotal por si acaso
     private double cpuUsage;
+
+    @SerializedName(value = "ramUsage", alternate = {"ram", "memUsedBytes"})
     private double ramUsage;
 
-    public MetricDto(){}
+    @SerializedName(value = "diskUsage", alternate = {"disk", "diskUsedGb"})
+    private double diskUsage;
 
-    public String getMachineId() { return machineId; }
-    public void setMachineId(String machineId) { this.machineId = machineId; }
-
+    // Getters
     public String getTimestamp() { return timestamp; }
-    public void setTimestamp(String timestamp) { this.timestamp = timestamp; }
-
     public double getCpuUsage() { return cpuUsage; }
-    public void setCpuUsage(double cpuUsage) { this.cpuUsage = cpuUsage; }
-
     public double getRamUsage() { return ramUsage; }
-    public void setRamUsage(double ramUsage) { this.ramUsage = ramUsage; }
+    public double getDiskUsage() { return diskUsage; }
 }

@@ -1,26 +1,30 @@
 package com.example.metricsserver;
 
-// MetricsService.java
+import java.util.List;
+import java.util.Map; // <--- Importante: No olvides importar esto
+
 public class MetricsService {
 
     private final MetricsDao metricsDao;
 
-    public MetricsService(MetricsDao metricsDao) {
-        this.metricsDao = metricsDao;
+    public MetricsService(MetricsDao dao) {
+        this.metricsDao = dao;
     }
 
-    public void procesarMetric(MetricDto dto) throws Exception {
-        // Validaciones mínimas
-        if (dto.getMachineId() == null || dto.getMachineId().isBlank()) {
-            throw new IllegalArgumentException("machineId obligatorio");
-        }
-        if (dto.getTimestamp() == null || dto.getTimestamp().isBlank()) {
-            throw new IllegalArgumentException("timestamp obligatorio");
+    // Método antiguo: Bórralo o coméntalo si ya no tienes el método 'guardar' en el DAO
+    // public void procesarMetric(MetricDto dto) {
+    //    metricsDao.guardar(dto);
+    // }
+
+    // 💡 MÉTODO CORREGIDO: Ahora acepta y pasa el 'hostInfo'
+    public void procesarLote(String agentKey, Map<String, String> hostInfo, List<MetricDto> samples) {
+
+        // Validaciones básicas
+        if (agentKey == null || agentKey.isEmpty()) {
+            agentKey = "UNKNOWN-AGENT";
         }
 
-        // Puedes agregar validaciones de rango si quieres
-        // if (dto.getCpuUsage() < 0 || dto.getCpuUsage() > 100) ...
-
-        metricsDao.guardar(dto);
+        // Delegar al DAO pasando los 3 datos necesarios
+        metricsDao.guardarLote(agentKey, hostInfo, samples);
     }
 }

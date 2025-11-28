@@ -5,7 +5,11 @@ import java.sql.SQLException;
 import io.github.cdimascio.dotenv.Dotenv;
 
 public class Conexion {
-    private static final Dotenv dotenv = Dotenv.load();
+    private static final Dotenv dotenv = Dotenv.configure()
+            .ignoreIfMissing()                   // evita que el server muera en VPS
+            .directory("./")                     // busca el .env en el mismo dir del jar
+            .filename(".env")                    // archivo exacto
+            .load();
     private static final String URL = dotenv.get("DB_URL");
     private static final String USER = dotenv.get("DB_USER");
     private static final String PASSWORD = dotenv.get("DB_PASSWORD");

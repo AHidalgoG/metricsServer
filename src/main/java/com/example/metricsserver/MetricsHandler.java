@@ -1,4 +1,5 @@
-package com.example.metricsserver;// MetricsHandler.java
+package com.example.metricsserver;
+
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.google.gson.Gson;
@@ -26,33 +27,39 @@ public class MetricsHandler implements HttpHandler {
             return;
         }
 
+        // 1. Leer el Body
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))) {
-
             String line;
             while ((line = reader.readLine()) != null) {
                 sb.append(line);
             }
         }
         String body = sb.toString();
-        System.out.println("BODY RECIBIDO: " + body);  // <-- importante
+        // System.out.println("BODY RECIBIDO (BATCH): " + body); // Descomenta si quieres debug
 
         try {
-            MetricDto dto = gson.fromJson(body, MetricDto.class);
+            // 2. Deserializar
+            BatchPayloadDto payload = gson.fromJson(body, BatchPayloadDto.class);
 
-            if (dto == null) {
-                // Esto pasa si el body es literalmente "null"
-                String response = "JSON nulo (body = 'null')";
+            if (payload == null || payload.getSamples() == null || payload.getSamples().isEmpty()) {
+                String response = "Batch vacío o nulo";
                 byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
                 exchange.sendResponseHeaders(400, bytes.length);
                 try (OutputStream os = exchange.getResponseBody()) { os.write(bytes); }
                 return;
             }
 
-            metricsService.procesarMetric(dto);
+            // 💡 CORRECCIÓN AQUÍ: Pasamos los 3 argumentos (Key, HostInfo, Lista)
+            metricsService.procesarLote(
+                    payload.getAgentKey(),
+                    payload.getHostInfo(), // <--- ¡Esto faltaba!
+                    payload.getSamples()
+            );
 
-            String response = "OK";
+            // Responder OK
+            String response = "OK - Procesadas " + payload.getSamples().size() + " metricas.";
             byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(200, bytes.length);
             try (OutputStream os = exchange.getResponseBody()) { os.write(bytes); }
@@ -66,7 +73,7 @@ public class MetricsHandler implements HttpHandler {
 
         } catch (Exception e) {
             e.printStackTrace();
-            String response = "Error interno";
+            String response = "Error interno: " + e.getMessage();
             byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(500, bytes.length);
             try (OutputStream os = exchange.getResponseBody()) { os.write(bytes); }
