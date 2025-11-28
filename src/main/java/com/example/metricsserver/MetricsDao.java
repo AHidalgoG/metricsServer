@@ -140,7 +140,7 @@ public class MetricsDao {
                 AGENT_KEY, ID_LAB, HOSTNAME, 
                 SISTEMA_OPERATIVO, MAC, IP, NUMERO_SERIE, 
                 ESTADO_EQUIPO, FECHA_INGRESO_EQ
-            ) VALUES (?, 1, ?, ?, ?, ?, ?, 'ACTIVO', CURRENT_DATE) 
+            ) VALUES (?, 0, ?, ?, ?, ?, ?, 'ACTIVO', CURRENT_DATE) 
             RETURNING ID_EQ
         """;
 
