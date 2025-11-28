@@ -3,9 +3,12 @@ package com.example.metricsserver;
 import com.example.metricsserver.config.Conexion;
 import java.sql.*;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
 public class MetricsDao {
 
@@ -112,7 +115,7 @@ public class MetricsDao {
                 mapaTipos.put(clave, id);
                 mapaUmbrales.put(id, max);
 
-                System.out.println("Config cargada -> ID: " + id + " | Clave: " + clave + " | Umbral Max: " + max);
+                log("Config cargada -> ID: " + id + " | Clave: " + clave + " | Umbral Max: " + max);
             }
             System.out.println("------------------------------");
 
@@ -161,7 +164,7 @@ public class MetricsDao {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    System.out.println("✅ Equipo registrado: " + agentKey + " [SN: " + hostInfo.get("serial") + "]");
+                    log("✅ NUEVO EQUIPO | " + agentKey + " | SN: " + hostInfo.get("serial"));
                     return rs.getInt(1);
                 }
             }
@@ -210,21 +213,21 @@ public class MetricsDao {
 
                     // --- CPU ---
                     if (mapaTipos.containsKey("cpu_usage")) {
-                        procesarDatoIndividual(psMetrica, psAlerta, idEquipo, "cpu_usage", m.getCpuUsage(), fecha, idSesion);
+                        procesarDatoIndividual(psMetrica, psAlerta, idEquipo, "cpu_usage", agentKey, m.getCpuUsage(), fecha, idSesion);
                     }
 
                     // --- RAM ---
                     if (mapaTipos.containsKey("ram_usage")) {
                         double valorRam = m.getRamUsage();
                         if (valorRam > 1000000) valorRam = valorRam / (1024 * 1024); // Parche bytes
-                        procesarDatoIndividual(psMetrica, psAlerta, idEquipo, "ram_usage", valorRam, fecha, idSesion);
+                        procesarDatoIndividual(psMetrica, psAlerta, idEquipo,agentKey ,"ram_usage", valorRam, fecha, idSesion);
                     }
 
                     // Buscamos la clave 'disk_usage' que insertamos en el Paso 1
                     if (mapaTipos.containsKey("disk_usage")) {
                         procesarDatoIndividual(
                                 psMetrica, psAlerta,
-                                idEquipo,
+                                idEquipo, agentKey,
                                 "disk_usage",   // <--- La clave SQL
                                 m.getDiskUsage(), // <--- El valor del DTO
                                 fecha, idSesion
@@ -247,7 +250,7 @@ public class MetricsDao {
 
     // Método auxiliar con logs
     private void procesarDatoIndividual(PreparedStatement psM, PreparedStatement psA,
-                                        int idEq, String clave, double valor, Timestamp fecha, Long idSesion) throws SQLException {
+                                        int idEq, String nombrePC, String clave, double valor, Timestamp fecha, Long idSesion) throws SQLException {
         Integer idTipo = mapaTipos.get(clave);
 
         if (idTipo == null) {
@@ -268,7 +271,7 @@ public class MetricsDao {
 
 
         if (umbral != null && valor > umbral) {
-            System.out.println("GENERANDO ALERTA SQL para " + clave);
+            log("⚠️ ALERTA SQL | " + clave + " | PC: " + nombrePC + " | Valor: " + valor);
 
             psA.setInt(1, idEq);
             psA.setInt(2, idTipo);
@@ -277,5 +280,9 @@ public class MetricsDao {
             psA.setTimestamp(5, fecha);
             psA.addBatch();
         }
+    }
+    private void log(String mensaje){
+        String hora = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        System.out.println("["+hora+"] "+mensaje);
     }
 }
