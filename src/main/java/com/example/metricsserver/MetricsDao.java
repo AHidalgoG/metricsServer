@@ -20,7 +20,7 @@ public class MetricsDao {
     // Variable para guardar el ID de la sesión actual en memoria durante el proceso
     private Map<Integer, Long> cacheSesionesActivas = new HashMap<>();
 
-    public Long gestionarSesionAutomatica(int idEquipo, Timestamp fechaMuestra) {
+    public Long gestionarSesionAutomatica(int idEquipo, String nombrePC, Timestamp fechaMuestra) {
         // 1. Verificar si tenemos una sesión activa válida en la BD
         String sqlBuscar = """
         SELECT ID_SESION, FECHA_TERMINO 
@@ -44,6 +44,7 @@ public class MetricsDao {
 
                 if (diferenciaMinutos > 30) {
                     // CASO: Corte de luz o apagado largo.
+                    Log.info("🔄 NUEVA SESIÓN (Reinicio) | PC: " + nombrePC + " | Inactivo por " + diferenciaMinutos + " min");
                     // Cerramos la vieja y creamos una nueva.
                     cerrarSesion(idSesion);
                     return crearNuevaSesion(idEquipo, fechaMuestra);
@@ -54,6 +55,7 @@ public class MetricsDao {
                 }
             } else {
                 // CASO: Primer encendido (no hay sesión activa)
+                Log.info("🆕 INICIO DE SESIÓN | PC: " + nombrePC + " | Equipo encendido");
                 return crearNuevaSesion(idEquipo, fechaMuestra);
             }
         } catch (SQLException e) {
@@ -182,7 +184,7 @@ public class MetricsDao {
 
         // Fecha base para el lote
         Timestamp fechaBase = Timestamp.from(Instant.now());
-        Long idSesion = gestionarSesionAutomatica(idEquipo, fechaBase);
+        Long idSesion = gestionarSesionAutomatica(idEquipo, agentKey, fechaBase);
 
         // SQLs actualizados para las nuevas tablas
         String sqlRaw = "INSERT INTO METRICAS_RAW (ID_EQ, ID_TIPO, ID_SESION, VALOR, FECHA_REGISTRO) VALUES (?, ?, ?, ?, ?)";
