@@ -2,13 +2,13 @@ package com.example.metricsserver;
 
 import com.example.metricsserver.config.Conexion;
 import java.sql.*;
+import com.example.metricsserver.Log;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
 
 public class MetricsDao {
 
@@ -115,7 +115,7 @@ public class MetricsDao {
                 mapaTipos.put(clave, id);
                 mapaUmbrales.put(id, max);
 
-                log("Config cargada -> ID: " + id + " | Clave: " + clave + " | Umbral Max: " + max);
+                Log.info("Config cargada -> ID: " + id + " | Clave: " + clave + " | Umbral Max: " + max);
             }
             System.out.println("------------------------------");
 
@@ -164,7 +164,7 @@ public class MetricsDao {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    log("✅ NUEVO EQUIPO | " + agentKey + " | SN: " + hostInfo.get("serial"));
+                    Log.info("✅ NUEVO EQUIPO | " + agentKey + " | SN: " + hostInfo.get("serial"));
                     return rs.getInt(1);
                 }
             }
@@ -175,69 +175,65 @@ public class MetricsDao {
     }
 
     // 3. Guardar Métricas y Generar Alertas
+    // 3. Guardar Métricas (Versión Optimizada: RAW + Rollup 1 Minuto)
     public void guardarLote(String agentKey, Map<String, String> hostInfo, List<MetricDto> samples) {
         int idEquipo = asegurarEquipo(agentKey, hostInfo);
         if (idEquipo == -1) return;
 
-        // 1. Calcular la Sesión Automática (Heartbeat)
+        // Fecha base para el lote
         Timestamp fechaBase = Timestamp.from(Instant.now());
-        if (!samples.isEmpty() && samples.get(0).getTimestamp() != null) {
-            try { fechaBase = Timestamp.from(Instant.parse(samples.get(0).getTimestamp())); }
-            catch (Exception e) {}
-        }
+        Long idSesion = gestionarSesionAutomatica(idEquipo, fechaBase);
 
-        // Obtenemos el ID de sesión calculado por el servidor
-        Long idSesionAuto = gestionarSesionAutomatica(idEquipo, fechaBase);
-
-        // SQLs
-        String sqlMetrica = "INSERT INTO METRICAS (ID_EQ, ID_TIPO, ID_SESION, VALOR, FECHA_REGISTRO) VALUES (?, ?, ?, ?, ?)";
+        // SQLs actualizados para las nuevas tablas
+        String sqlRaw = "INSERT INTO METRICAS_RAW (ID_EQ, ID_TIPO, ID_SESION, VALOR, FECHA_REGISTRO) VALUES (?, ?, ?, ?, ?)";
+        String sqlRollup = "INSERT INTO METRICAS_1MIN (ID_EQ, ID_TIPO, FECHA_REGISTRO, VALOR_PROM, VALOR_MAX, VALOR_P95) VALUES (?, ?, ?, ?, ?, ?)";
         String sqlAlerta = "INSERT INTO ALERTA (ID_EQ, ID_TIPO, VALOR_REGISTRADO, MENSAJE, FECHA_ALERTA) VALUES (?, ?, ?, ?, ?)";
 
         try (Connection conn = conexion.getConnection()) {
-            conn.setAutoCommit(false);
+            conn.setAutoCommit(false); // Inicio Transacción
 
-            try (PreparedStatement psMetrica = conn.prepareStatement(sqlMetrica);
+            // Listas para calcular estadísticas en memoria (CPU, RAM, Disco)
+            List<Double> cpuValues = new ArrayList<>();
+            List<Double> ramValues = new ArrayList<>();
+            List<Double> diskValues = new ArrayList<>();
+
+            try (PreparedStatement psRaw = conn.prepareStatement(sqlRaw);
+                 PreparedStatement psRollup = conn.prepareStatement(sqlRollup);
                  PreparedStatement psAlerta = conn.prepareStatement(sqlAlerta)) {
 
+                // A. Procesar cada muestra (Guardar RAW y llenar listas)
                 for (MetricDto m : samples) {
-                    Timestamp fecha;
-                    try {
-                        fecha = (m.getTimestamp() != null) ? Timestamp.from(Instant.parse(m.getTimestamp())) : Timestamp.from(Instant.now());
-                    } catch (Exception e) { fecha = Timestamp.from(Instant.now()); }
+                    Timestamp fechaMuestra = (m.getTimestamp() != null) ? Timestamp.from(Instant.parse(m.getTimestamp())) : fechaBase;
 
-                    // 🔴 ERROR ANTERIOR:
-                    // Long idSesion = (m.getSessionId() != null...) ? ... : null;
-
-                    // 🟢 CORRECCIÓN: Usamos la sesión automática que calculamos arriba
-                    Long idSesion = idSesionAuto;
-
-                    // --- CPU ---
+                    // CPU
                     if (mapaTipos.containsKey("cpu_usage")) {
-                        procesarDatoIndividual(psMetrica, psAlerta, idEquipo, "cpu_usage", agentKey, m.getCpuUsage(), fecha, idSesion);
+                        cpuValues.add(m.getCpuUsage());
+                        insertarRaw(psRaw, idEquipo, "cpu_usage", m.getCpuUsage(), fechaMuestra, idSesion);
                     }
-
-                    // --- RAM ---
+                    // RAM (Convertir a MB si viene en Bytes)
                     if (mapaTipos.containsKey("ram_usage")) {
-                        double valorRam = m.getRamUsage();
-                        if (valorRam > 1000000) valorRam = valorRam / (1024 * 1024); // Parche bytes
-                        procesarDatoIndividual(psMetrica, psAlerta, idEquipo,agentKey ,"ram_usage", valorRam, fecha, idSesion);
+                        double ramMb = m.getRamUsage() > 1000000 ? m.getRamUsage() / (1024 * 1024) : m.getRamUsage();
+                        ramValues.add(ramMb);
+                        insertarRaw(psRaw, idEquipo, "ram_usage", ramMb, fechaMuestra, idSesion);
                     }
-
-                    // Buscamos la clave 'disk_usage' que insertamos en el Paso 1
+                    // DISCO
                     if (mapaTipos.containsKey("disk_usage")) {
-                        procesarDatoIndividual(
-                                psMetrica, psAlerta,
-                                idEquipo, agentKey,
-                                "disk_usage",   // <--- La clave SQL
-                                m.getDiskUsage(), // <--- El valor del DTO
-                                fecha, idSesion
-                        );
+                        diskValues.add(m.getDiskUsage());
+                        insertarRaw(psRaw, idEquipo, "disk_usage", m.getDiskUsage(), fechaMuestra, idSesion);
                     }
                 }
+                psRaw.executeBatch(); // Enviamos todos los datos crudos a la BD
 
-                psMetrica.executeBatch();
-                psAlerta.executeBatch();
-                conn.commit();
+                // B. Calcular y Guardar ROLLUP DE 1 MINUTO (En memoria)
+                // Esto reemplaza al 'procesarDatoIndividual' antiguo para las alertas y resumenes
+                generarRollup(psRollup, psAlerta, idEquipo, agentKey, "cpu_usage", cpuValues, fechaBase);
+                generarRollup(psRollup, psAlerta, idEquipo, agentKey, "ram_usage", ramValues, fechaBase);
+                generarRollup(psRollup, psAlerta, idEquipo, agentKey, "disk_usage", diskValues, fechaBase);
+
+                psRollup.executeBatch(); // Enviamos los promedios
+                psAlerta.executeBatch(); // Enviamos las alertas (si hubo)
+
+                conn.commit(); // Confirmamos todo el bloque
 
             } catch (Exception e) {
                 conn.rollback();
@@ -254,7 +250,7 @@ public class MetricsDao {
         Integer idTipo = mapaTipos.get(clave);
 
         if (idTipo == null) {
-            System.err.println("ERROR: No se encontró ID para la clave: " + clave);
+            Log.error("ERROR: No se encontró ID para la clave: " + clave);
             return;
         }
 
@@ -271,7 +267,7 @@ public class MetricsDao {
 
 
         if (umbral != null && valor > umbral) {
-            log("⚠️ ALERTA SQL | " + clave + " | PC: " + nombrePC + " | Valor: " + valor);
+            Log.info("⚠️ ALERTA SQL | " + clave + " | PC: " + nombrePC + " | Valor: " + valor);
 
             psA.setInt(1, idEq);
             psA.setInt(2, idTipo);
@@ -281,8 +277,115 @@ public class MetricsDao {
             psA.addBatch();
         }
     }
-    private void log(String mensaje){
-        String hora = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-        System.out.println("["+hora+"] "+mensaje);
+
+    // Método simple para guardar el dato crudo sin evaluar nada
+    private void insertarRaw(PreparedStatement ps, int idEq, String clave, double valor, Timestamp fecha, Long idSesion) throws SQLException {
+        Integer idTipo = mapaTipos.get(clave);
+        if (idTipo == null) return;
+
+        ps.setInt(1, idEq);
+        ps.setInt(2, idTipo);
+        if (idSesion != null) ps.setLong(3, idSesion); else ps.setNull(3, Types.BIGINT);
+        ps.setDouble(4, valor);
+        ps.setTimestamp(5, fecha);
+        ps.addBatch();
+    }
+
+    // Método INTELIGENTE: Calcula Promedio, Max, P95 y evalúa Alertas
+    private void generarRollup(PreparedStatement ps, PreparedStatement psAlerta, int idEq, String nombrePC, String clave, List<Double> valores, Timestamp fecha) throws SQLException {
+        if (valores.isEmpty()) return;
+
+        // 1. Cálculos Matemáticos
+        double max = Collections.max(valores);
+        double avg = valores.stream().mapToDouble(d -> d).average().orElse(0.0);
+
+        // Percentil 95 (Ordenamos y tomamos el valor que está al 95% de la lista)
+        // Esto sirve para ignorar picos falsos de 1 milisegundo.
+        Collections.sort(valores);
+        int index = (int) Math.ceil(0.95 * valores.size()) - 1;
+        double p95 = valores.get(Math.max(0, index));
+
+        // 2. Insertar en tabla METRICAS_1MIN
+        Integer idTipo = mapaTipos.get(clave);
+        if (idTipo == null) return;
+
+        ps.setInt(1, idEq);
+        ps.setInt(2, idTipo);
+        ps.setTimestamp(3, fecha);
+        ps.setDouble(4, avg);
+        ps.setDouble(5, max);
+        ps.setDouble(6, p95);
+        ps.addBatch();
+
+        // 3. Evaluar Alertas (Usamos P95 para evitar falsos positivos)
+        Double umbral = mapaUmbrales.get(idTipo);
+        if (umbral != null && p95 > umbral) {
+            Log.info("⚠️ ALERTA (Rollup) | " + clave + " | PC: " + nombrePC + " | P95: " + String.format("%.2f", p95) + " > " + umbral);
+
+            psAlerta.setInt(1, idEq);
+            psAlerta.setInt(2, idTipo);
+            psAlerta.setDouble(3, p95);
+            psAlerta.setString(4, "Critico (P95): " + String.format("%.2f", p95) + " > " + umbral);
+            psAlerta.setTimestamp(5, fecha);
+            psAlerta.addBatch();
+        }
+    }
+    // Método de Mantenimiento (Se ejecutará automáticamente cada 5 mins)
+    public void ejecutarMantenimiento() {
+        Log.info("🔄 MANTENIMIENTO: Verificando periodos cerrados y limpiando...");
+
+        // A. Generar Rollup 5 MIN: Solo intervalos pasados
+        String sql5Min = """
+            INSERT INTO METRICAS_5MIN (ID_EQ, ID_TIPO, FECHA_REGISTRO, VALOR_PROM, VALOR_MAX, VALOR_P95)
+            SELECT 
+                ID_EQ, ID_TIPO, 
+                date_trunc('hour', FECHA_REGISTRO) + interval '5 min' * floor(date_part('minute', FECHA_REGISTRO) / 5),
+                AVG(VALOR_PROM), MAX(VALOR_MAX), MAX(VALOR_P95)
+            FROM METRICAS_1MIN
+            WHERE FECHA_REGISTRO < date_trunc('hour', NOW()) + interval '5 min' * floor(date_part('minute', NOW()) / 5)
+              AND FECHA_REGISTRO > NOW() - INTERVAL '24 hours' 
+            GROUP BY 1, 2, 3
+            ON CONFLICT DO NOTHING
+        """;
+
+        // B. Generar Rollup 1 HORA: Solo horas pasadas completas
+        String sql1Hora = """
+            INSERT INTO METRICAS_1HORA (ID_EQ, ID_TIPO, FECHA_REGISTRO, VALOR_PROM, VALOR_MAX, VALOR_P95)
+            SELECT 
+                ID_EQ, ID_TIPO, 
+                date_trunc('hour', FECHA_REGISTRO),
+                AVG(VALOR_PROM), MAX(VALOR_MAX), MAX(VALOR_P95)
+            FROM METRICAS_5MIN
+            WHERE FECHA_REGISTRO < date_trunc('hour', NOW()) 
+              AND FECHA_REGISTRO > NOW() - INTERVAL '48 hours'
+            GROUP BY 1, 2, 3
+            ON CONFLICT DO NOTHING
+        """;
+
+        // C. Limpieza (Retención de datos)
+        String sqlCleanRaw = "DELETE FROM METRICAS_RAW WHERE FECHA_REGISTRO < NOW() - INTERVAL '48 hours'";
+        String sqlClean1Min = "DELETE FROM METRICAS_1MIN WHERE FECHA_REGISTRO < NOW() - INTERVAL '7 days'";
+        String sqlClean5Min = "DELETE FROM METRICAS_5MIN WHERE FECHA_REGISTRO < NOW() - INTERVAL '30 days'";
+
+        try (Connection conn = conexion.getConnection();
+             Statement stmt = conn.createStatement()) {
+
+            // Ejecutamos las agregaciones
+            int r5 = stmt.executeUpdate(sql5Min);
+            int r1h = stmt.executeUpdate(sql1Hora);
+
+            // Ejecutamos la limpieza
+            stmt.executeUpdate(sqlCleanRaw);
+            stmt.executeUpdate(sqlClean1Min);
+            stmt.executeUpdate(sqlClean5Min);
+
+            if (r5 > 0 || r1h > 0) {
+                Log.info("✅ MANTENIMIENTO: Generados " + r5 + " rollups (5m) y " + r1h + " rollups (1h).");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            Log.error("❌ ERROR MANTENIMIENTO: " + e.getMessage());
+        }
     }
 }
