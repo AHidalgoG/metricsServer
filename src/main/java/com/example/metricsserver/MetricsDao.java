@@ -2,8 +2,9 @@ package com.example.metricsserver;
 
 import com.example.metricsserver.config.Conexion;
 import java.sql.*;
-import com.example.metricsserver.Log;
+
 import java.time.Instant;
+import com.example.metricsserver.Log;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,7 @@ public class MetricsDao {
                 return crearNuevaSesion(idEquipo, fechaMuestra);
             }
         } catch (SQLException e) {
+            Log.error(e.getMessage());
             e.printStackTrace();
             return null;
         }
@@ -85,7 +87,10 @@ public class MetricsDao {
             ps.setTimestamp(1, fecha);
             ps.setLong(2, idSesion);
             ps.executeUpdate();
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) {
+            Log.error(e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void cerrarSesion(long idSesion) {
@@ -94,7 +99,10 @@ public class MetricsDao {
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, idSesion);
             ps.executeUpdate();
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) {
+            Log.error(e.getMessage());
+            e.printStackTrace();
+        }
     }
     public MetricsDao() {
         this.conexion = new Conexion();
@@ -122,6 +130,7 @@ public class MetricsDao {
             System.out.println("------------------------------");
 
         } catch (SQLException e) {
+            Log.error(e.getMessage());
             e.printStackTrace();
         }
     }
@@ -136,7 +145,10 @@ public class MetricsDao {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) return rs.getInt("ID_EQ");
             }
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) {
+            Log.error(e.getMessage());
+            e.printStackTrace();
+        }
 
         // 2. INSERTAR (Actualizado con Serial)
         // 💡 OJO: Agregué NUMERO_SERIE en la lista de columnas y un ? más
@@ -171,6 +183,7 @@ public class MetricsDao {
                 }
             }
         } catch (SQLException e) {
+            Log.error(e.getMessage());
             e.printStackTrace();
         }
         return -1;
@@ -239,9 +252,11 @@ public class MetricsDao {
 
             } catch (Exception e) {
                 conn.rollback();
+                Log.error(e.getMessage());
                 e.printStackTrace();
             }
         } catch (SQLException e) {
+            Log.error(e.getMessage());
             e.printStackTrace();
         }
     }
