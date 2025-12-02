@@ -3,6 +3,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import io.github.cdimascio.dotenv.Dotenv;
+import com.example.metricsserver.Log;
 
 public class Conexion {
     private static final Dotenv dotenv = Dotenv.configure()
@@ -15,8 +16,13 @@ public class Conexion {
     private static final String PASSWORD = dotenv.get("DB_PASSWORD");
 
     public Connection getConnection() throws SQLException {
-        assert URL != null;
-        return DriverManager.getConnection(URL, USER, PASSWORD); //en caso de dar error lanza un SQLException
+        try {
+            assert URL != null;
+            return DriverManager.getConnection(URL, USER, PASSWORD); //en caso de dar error lanza un SQLException
+        }catch (SQLException e) {
+            Log.error("🔌 Fallo de conexión a PostgreSQL: " + e.getMessage());
+            throw e;
+        }
     }
 
     //este metodo hace que para guardar los cambios en la BD, debemos ingresar conn.commit(), sirve cuando se hacen varias operaciones juntas, insert, update, etc.
