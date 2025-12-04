@@ -210,7 +210,8 @@ public class MetricsDao {
             // Listas para calcular estadísticas en memoria (CPU, RAM, Disco)
             List<Double> cpuValues = new ArrayList<>();
             List<Double> ramValues = new ArrayList<>();
-            List<Double> diskValues = new ArrayList<>();
+            List<Double> diskPercentValues = new ArrayList<>();
+            List<Double> diskUsedGbValues = new ArrayList<>();
 
             try (PreparedStatement psRaw = conn.prepareStatement(sqlRaw);
                  PreparedStatement psRollup = conn.prepareStatement(sqlRollup);
@@ -231,10 +232,26 @@ public class MetricsDao {
                         ramValues.add(ramMb);
                         insertarRaw(psRaw, idEquipo, "ram_usage", ramMb, fechaMuestra, idSesion);
                     }
-                    // DISCO
+                    // DISCO - PORCENTAJE
                     if (mapaTipos.containsKey("disk_usage")) {
-                        diskValues.add(m.getDiskUsage());
-                        insertarRaw(psRaw, idEquipo, "disk_usage", m.getDiskUsage(), fechaMuestra, idSesion);
+                        double diskPercent = m.getDiskUsagePercent();
+                        diskPercentValues.add(diskPercent);
+                        insertarRaw(psRaw, idEquipo, "disk_usage", diskPercent, fechaMuestra, idSesion);
+                    }
+
+                    // DISCO - GB USADOS (disk_used_gb)
+                    if (mapaTipos.containsKey("disk_used_gb")) {
+                        double usedGb = m.getDiskUsedGb();
+                        diskUsedGbValues.add(usedGb);
+                        insertarRaw(psRaw, idEquipo, "disk_used_gb", usedGb, fechaMuestra, idSesion);
+                    }
+
+                    // DISCO - GB TOTALES (disk_total_gb)
+                    if (mapaTipos.containsKey("disk_total_gb")) {
+                        double totalGb = m.getDiskTotalGb();
+                        // No hace falta acumular para rollup si casi no cambia,
+                        // pero sí queremos tener el valor RAW en la BD.
+                        insertarRaw(psRaw, idEquipo, "disk_total_gb", totalGb, fechaMuestra, idSesion);
                     }
                 }
                 psRaw.executeBatch(); // Enviamos todos los datos crudos a la BD
@@ -243,7 +260,10 @@ public class MetricsDao {
                 // Esto reemplaza al 'procesarDatoIndividual' antiguo para las alertas y resumenes
                 generarRollup(psRollup, psAlerta, idEquipo, agentKey, "cpu_usage", cpuValues, fechaBase);
                 generarRollup(psRollup, psAlerta, idEquipo, agentKey, "ram_usage", ramValues, fechaBase);
-                generarRollup(psRollup, psAlerta, idEquipo, agentKey, "disk_usage", diskValues, fechaBase);
+                generarRollup(psRollup, psAlerta, idEquipo, agentKey, "disk_usage", diskPercentValues, fechaBase);
+                if (!diskUsedGbValues.isEmpty() && mapaTipos.containsKey("disk_used_gb")) {
+                    generarRollup(psRollup, psAlerta, idEquipo, agentKey, "disk_used_gb", diskUsedGbValues, fechaBase);
+                }
 
                 psRollup.executeBatch(); // Enviamos los promedios
                 psAlerta.executeBatch(); // Enviamos las alertas (si hubo)
