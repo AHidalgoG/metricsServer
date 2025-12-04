@@ -70,7 +70,7 @@ public class MetricsDao {
         String sqlSesion = "INSERT INTO SESION (ID_EQ, FECHA_INICIO, FECHA_TERMINO, ESTADO_SESION) VALUES (?, ?, ?, 'ACTIVA') RETURNING ID_SESION";
 
         //NUEVO: Actualizar estado del equipo
-        String sqlEquipo = "UPDATE EQUIPO SET ESTADO_EQUIPO = 'OCUPADO' WHERE ID_EQ = ?";
+        String sqlEquipo = "UPDATE EQUIPO SET ESTADO_EQUIPO = 'EN USO' WHERE ID_EQ = ?";
 
         try (Connection conn = conexion.getConnection()) {
             conn.setAutoCommit(false); // Transacción para que ambos ocurran sí o sí
@@ -87,7 +87,7 @@ public class MetricsDao {
                 long idSesion = -1;
                 if (rs.next()) idSesion = rs.getLong(1);
 
-                // 2. Marcar Equipo como Ocupado
+                // 2. Marcar Equipo como En uso
                 psEquipo.setInt(1, idEquipo);
                 psEquipo.executeUpdate();
 
