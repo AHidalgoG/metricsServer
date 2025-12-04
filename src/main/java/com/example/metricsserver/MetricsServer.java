@@ -27,6 +27,7 @@ public class MetricsServer {
             server = HttpServer.create(new InetSocketAddress(port), 0);
             server.createContext("/metrics", handler);
             server.createContext("/time", timeHandler);
+            server.createContext("/health", new HealthHandler());
             server.setExecutor(null);
 
             server.start(); // 🚨 AQUÍ suele fallar si el puerto está ocupado
