@@ -19,30 +19,38 @@ public class SessionCleaner {
 
     public void start() {
         // Ejecutar cada 5 minutos
-        scheduler.scheduleAtFixedRate(this::cerrarSesionesZombies, 0, 5, TimeUnit.MINUTES);
+        scheduler.scheduleAtFixedRate(this::cerrarSesionesVencidas, 0, 5, TimeUnit.MINUTES);
         System.out.println("🧹 [Cleaner] Servicio de limpieza de sesiones iniciado.");
     }
 
-    private void cerrarSesionesZombies() {
-        // Lógica: Si dice ACTIVA pero la última señal fue hace más de 35 minutos -> CERRARLA.
-        // (Damos 5 mins extra de margen sobre los 30 del heartbeat normal)
+    private void cerrarSesionesVencidas() {
+        // ESTA CONSULTA HACE DOS COSAS A LA VEZ:
+        // 1. Cierra las sesiones viejas y captura sus ID_EQ en una lista temporal llamada 'cerradas'.
+        // 2. Usa esa lista 'cerradas' para poner esos equipos específicos como DISPONIBLE.
         String sql = """
+        WITH sesiones_cerradas AS (
             UPDATE SESION 
             SET ESTADO_SESION = 'CERRADA' 
             WHERE ESTADO_SESION = 'ACTIVA' 
-              AND FECHA_TERMINO < NOW() - INTERVAL '35 minutes'
-        """;
+              AND FECHA_TERMINO < NOW() - INTERVAL '30 minutes'
+            RETURNING ID_EQ
+        )
+        UPDATE EQUIPO
+        SET ESTADO_EQUIPO = 'DISPONIBLE'
+        WHERE ID_EQ IN (SELECT ID_EQ FROM sesiones_cerradas)
+    """;
 
         try (Connection conn = conexion.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            int cerradas = ps.executeUpdate();
-            if (cerradas > 0) {
-                System.out.println("🧹 [Cleaner] Se cerraron automáticamente " + cerradas + " sesiones zombies.");
+            int equiposLiberados = ps.executeUpdate();
+
+            if (equiposLiberados > 0) {
+                System.out.println("🧹 [Cleaner] Se cerraron sesiones y se liberaron " + equiposLiberados + " equipos.");
             }
 
         } catch (SQLException e) {
-            System.err.println("Error en limpieza de sesiones: " + e.getMessage());
+            System.err.println("Error en SessionCleaner: " + e.getMessage());
         }
     }
 

@@ -21,10 +21,12 @@ public class MetricsServer {
             MetricsDao dao = new MetricsDao();
             MetricsService service = new MetricsService(dao);
             MetricsHandler handler = new MetricsHandler(service);
+            TimeHandler timeHandler = new TimeHandler();
 
             // Crear servidor HTTP
             server = HttpServer.create(new InetSocketAddress(port), 0);
             server.createContext("/metrics", handler);
+            server.createContext("/time", timeHandler);
             server.setExecutor(null);
 
             server.start(); // 🚨 AQUÍ suele fallar si el puerto está ocupado

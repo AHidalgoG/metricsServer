@@ -67,16 +67,38 @@ public class MetricsDao {
     }
 
     private Long crearNuevaSesion(int idEquipo, Timestamp fecha) throws SQLException {
-        String sql = "INSERT INTO SESION (ID_EQ, FECHA_INICIO, FECHA_TERMINO, ESTADO_SESION) VALUES (?, ?, ?, 'ACTIVA') RETURNING ID_SESION";
-        try (Connection conn = conexion.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, idEquipo);
-            ps.setTimestamp(2, fecha);
-            ps.setTimestamp(3, fecha);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) return rs.getLong(1);
+        String sqlSesion = "INSERT INTO SESION (ID_EQ, FECHA_INICIO, FECHA_TERMINO, ESTADO_SESION) VALUES (?, ?, ?, 'ACTIVA') RETURNING ID_SESION";
+
+        //NUEVO: Actualizar estado del equipo
+        String sqlEquipo = "UPDATE EQUIPO SET ESTADO_EQUIPO = 'OCUPADO' WHERE ID_EQ = ?";
+
+        try (Connection conn = conexion.getConnection()) {
+            conn.setAutoCommit(false); // Transacción para que ambos ocurran sí o sí
+
+            try (PreparedStatement psSesion = conn.prepareStatement(sqlSesion);
+                 PreparedStatement psEquipo = conn.prepareStatement(sqlEquipo)) {
+
+                // 1. Crear Sesión
+                psSesion.setInt(1, idEquipo);
+                psSesion.setTimestamp(2, fecha);
+                psSesion.setTimestamp(3, fecha);
+
+                ResultSet rs = psSesion.executeQuery();
+                long idSesion = -1;
+                if (rs.next()) idSesion = rs.getLong(1);
+
+                // 2. Marcar Equipo como Ocupado
+                psEquipo.setInt(1, idEquipo);
+                psEquipo.executeUpdate();
+
+                conn.commit();
+                return idSesion;
+
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            }
         }
-        return null;
     }
 
     private void actualizarSesion(long idSesion, Timestamp fecha) {
@@ -157,7 +179,7 @@ public class MetricsDao {
                 AGENT_KEY, ID_LAB, HOSTNAME, 
                 SISTEMA_OPERATIVO, MAC, IP, NUMERO_SERIE, 
                 ESTADO_EQUIPO, FECHA_INGRESO_EQ
-            ) VALUES (?, 0, ?, ?, ?, ?, ?, 'ACTIVO', CURRENT_DATE) 
+            ) VALUES (?, 0, ?, ?, ?, ?, ?, 'OPERATIVO', CURRENT_DATE) 
             RETURNING ID_EQ
         """;
 
