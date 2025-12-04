@@ -13,21 +13,26 @@ public class MetricsServer {
     private HttpServer server;
     // 1. Creamos el planificador (reloj) para tareas de fondo
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-
+    private HeartbeatService heartbeatService;
+    private SessionCleaner sessionCleaner;
     public void start(int port) {
         try {
             // Inicializamos DAO y Servicio
-            new SessionCleaner().start();
             MetricsDao dao = new MetricsDao();
             MetricsService service = new MetricsService(dao);
             MetricsHandler handler = new MetricsHandler(service);
             TimeHandler timeHandler = new TimeHandler();
 
+            this.heartbeatService = new HeartbeatService();
+            this.sessionCleaner = new SessionCleaner();
+
+            heartbeatService.start();
+            sessionCleaner.start();
+
             // Crear servidor HTTP
             server = HttpServer.create(new InetSocketAddress(port), 0);
             server.createContext("/metrics", handler);
             server.createContext("/time", timeHandler);
-            server.createContext("/health", new HealthHandler());
             server.setExecutor(null);
 
             server.start(); // 🚨 AQUÍ suele fallar si el puerto está ocupado
@@ -56,8 +61,18 @@ public class MetricsServer {
     }
 
     public void stop() {
+        if (heartbeatService != null) {
+            heartbeatService.stop(); // 🛑 Matamos el hilo del latido
+            System.out.println("Heartbeat detenido.");
+        }
+
+        if (sessionCleaner != null) {
+            sessionCleaner.stop();
+        }
+
         if (server != null) {
             server.stop(0);
+            System.out.println("Servidor HTTP detenido.");
         }
         // Detener el reloj al cerrar
         scheduler.shutdown();
