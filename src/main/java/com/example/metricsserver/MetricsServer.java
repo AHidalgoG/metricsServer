@@ -17,6 +17,7 @@ public class MetricsServer {
     public void start(int port) {
         try {
             // Inicializamos DAO y Servicio
+            new SessionCleaner().start();
             MetricsDao dao = new MetricsDao();
             MetricsService service = new MetricsService(dao);
             MetricsHandler handler = new MetricsHandler(service);
