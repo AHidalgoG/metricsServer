@@ -4,22 +4,36 @@ import com.google.gson.annotations.SerializedName;
 
 public class MetricDto {
 
-    //usará cualquiera de las 4 opciones para leer el json.
+    // timestamp (acepta varios nombres)
     @SerializedName(value = "timestamp", alternate = {"tsUtc", "time", "date"})
     private String timestamp;
 
-    @SerializedName(value = "cpuUsage", alternate = {"cpu", "cpuTotal"}) // Agregué cpuTotal por si acaso
+    // CPU
+    @SerializedName(value = "cpuUsage", alternate = {"cpu", "cpuTotal"})
     private double cpuUsage;
 
+    // RAM
     @SerializedName(value = "ramUsage", alternate = {"ram", "memUsedBytes"})
     private double ramUsage;
 
-    @SerializedName(value = "diskUsage", alternate = {"disk", "diskUsedGb"})
-    private double diskUsage;
+    // DISCO - PORCENTAJE
+    @SerializedName(value = "diskUsage", alternate = {"diskPercent"})
+    private double diskUsagePercent;
+
+    // DISCO - GB USADOS
+    @SerializedName(value = "diskUsedGb", alternate = {"diskUsed", "usedGb"})
+    private double diskUsedGb;
+
+    // DISCO - GB TOTALES
+    @SerializedName(value = "diskTotalGb", alternate = {"diskTotal", "totalGb"})
+    private double diskTotalGb;
 
     // Getters
     public String getTimestamp() { return timestamp; }
     public double getCpuUsage() { return cpuUsage; }
     public double getRamUsage() { return ramUsage; }
-    public double getDiskUsage() { return diskUsage; }
+
+    public double getDiskUsagePercent() { return diskUsagePercent; }
+    public double getDiskUsedGb() { return diskUsedGb; }
+    public double getDiskTotalGb() { return diskTotalGb; }
 }
