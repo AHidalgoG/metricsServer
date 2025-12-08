@@ -11,10 +11,10 @@ public class MetricsService {
         this.metricsDao = dao;
     }
 
-    // 💡 MÉTODO PRINCIPAL: Recibe, Valida y Guarda
+    // 💡 MÉTODO PRINCIPAL
     public void procesarLote(String agentKey, Map<String, String> hostInfo, List<MetricDto> samples) {
 
-        // 1. Validaciones de Integridad del Paquete
+        // 1. Validaciones básicas
         if (agentKey == null || agentKey.trim().isEmpty()) {
             agentKey = "UNKNOWN-AGENT";
         }
@@ -23,51 +23,48 @@ public class MetricsService {
             throw new IllegalArgumentException("El paquete de métricas está vacío.");
         }
 
-        // 2. LA ADUANA 🛡️ (Validación Dato por Dato)
-        // Si una sola métrica del paquete está corrupta, rechazamos todo el lote.
+        // 2. LA ADUANA 🛡️ (Validación Ajustada)
         for (MetricDto muestra : samples) {
             if (!esMetricaValida(muestra)) {
-                // Lanzamos excepción para que el Handler devuelva Error 400
+                // Rechazar si faltan los datos CRÍTICOS (CPU, RAM, %)
                 throw new IllegalArgumentException("RECHAZADO: El agente '" + agentKey +
-                        "' envió métricas incompletas o valores imposibles.");
+                        "' envió métricas corruptas (CPU/RAM/Disco inválidos).");
             }
         }
 
-        // 3. Si todo es correcto, pasamos al DAO para guardar
+        // 3. Guardar
         metricsDao.guardarLote(agentKey, hostInfo, samples);
     }
 
     // 🕵️‍♂️ Lógica Privada de Validación
     private boolean esMetricaValida(MetricDto m) {
 
-        // --- MÉTRICAS BÁSICAS ---
+        // --- SOLO VALIDAMOS LO QUE EL AGENTE YA ENVÍA ---
 
-        // 1. CPU % (Debe estar entre 0 y 100)
+        // 1. CPU % (Obligatorio 0-100)
         if (!esValido(m.getCpuUsage(), 0, 100)) {
             Log.error("Validación fallida: CPU % inválida (" + m.getCpuUsage() + ")");
             return false;
         }
 
-        // 2. RAM % (Debe ser positivo)
+        // 2. RAM % (Obligatorio Positivo)
         if (!esValido(m.getRamUsage(), 0, Double.MAX_VALUE)) {
             Log.error("Validación fallida: RAM % inválida (" + m.getRamUsage() + ")");
             return false;
         }
 
-        // 3. Disco % (Debe estar entre 0 y 100)
+        // 3. Disco % (Obligatorio 0-100)
         if (!esValido(m.getDiskUsagePercent(), 0, 100)) {
             Log.error("Validación fallida: Disco % inválido (" + m.getDiskUsagePercent() + ")");
             return false;
         }
 
-        // --- NUEVAS MÉTRICAS (Hardware Real) ---
+        // --- LOS CAMPOS NUEVOS AHORA SON OPCIONALES ---
+        // (Los comentamos para que no rechace la métrica si son null)
 
-        // 6. Temperatura (Opcional: A veces los sensores fallan y dan 0.0 o -999)
-        // Permitimos nulos o 0, pero no negativos absurdos.
-        if (m.getTemperature() != null && m.getTemperature() < -20) {
-            Log.error("Validación fallida: Temperatura física imposible (" + m.getTemperature() + ")");
-            return false;
-        }
+        /* if (!esValido(m.getDiskTotalGb(), 1, 999999)) return false;
+        if (!esValido(m.getDiskUsedGb(), 0, Double.MAX_VALUE)) return false;
+        */
 
         return true; // ✅ Todo aprobado
     }
