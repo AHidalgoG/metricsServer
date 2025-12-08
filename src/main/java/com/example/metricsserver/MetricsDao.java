@@ -270,20 +270,6 @@ public class MetricsDao {
                         insertarRaw(psRaw, idEquipo, "disk_usage", diskPercent, fechaMuestra, idSesion);
                     }
 
-                    // DISCO - GB USADOS (disk_used_gb)
-                    if (mapaTipos.containsKey("disk_used_gb")) {
-                        double usedGb = m.getDiskUsedGb();
-                        diskUsedGbValues.add(usedGb);
-                        insertarRaw(psRaw, idEquipo, "disk_used_gb", usedGb, fechaMuestra, idSesion);
-                    }
-
-                    // DISCO - GB TOTALES (disk_total_gb)
-                    if (mapaTipos.containsKey("disk_total_gb")) {
-                        double totalGb = m.getDiskTotalGb();
-                        // No hace falta acumular para rollup si casi no cambia,
-                        // pero sí queremos tener el valor RAW en la BD.
-                        insertarRaw(psRaw, idEquipo, "disk_total_gb", totalGb, fechaMuestra, idSesion);
-                    }
                 }
                 psRaw.executeBatch(); // Enviamos todos los datos crudos a la BD
 
@@ -292,9 +278,6 @@ public class MetricsDao {
                 generarRollup(psRollup, psAlerta, idEquipo, agentKey, "cpu_usage", cpuValues, fechaBase);
                 generarRollup(psRollup, psAlerta, idEquipo, agentKey, "ram_usage", ramValues, fechaBase);
                 generarRollup(psRollup, psAlerta, idEquipo, agentKey, "disk_usage", diskPercentValues, fechaBase);
-                if (!diskUsedGbValues.isEmpty() && mapaTipos.containsKey("disk_used_gb")) {
-                    generarRollup(psRollup, psAlerta, idEquipo, agentKey, "disk_used_gb", diskUsedGbValues, fechaBase);
-                }
 
                 if (!tempValues.isEmpty()) {
                     generarRollup(psRollup, psAlerta, idEquipo, agentKey, "cpu_temp", tempValues, fechaBase);

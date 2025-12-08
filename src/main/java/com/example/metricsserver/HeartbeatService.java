@@ -20,7 +20,7 @@ public class HeartbeatService {
     public void start() {
         // Ejecutar cada 10 segundos
         scheduler.scheduleAtFixedRate(this::actualizarLatido, 0, 10, TimeUnit.SECONDS);
-        System.out.println("💓 [Heartbeat] Servicio de latido iniciado.");
+        Log.info("💓 [Heartbeat] Servicio de latido iniciado.");
     }
 
     private void actualizarLatido() {
@@ -32,7 +32,7 @@ public class HeartbeatService {
             ps.executeUpdate();
 
         } catch (SQLException e) {
-            System.err.println("Error enviando latido: " + e.getMessage());
+            Log.info("Error enviando latido: " + e.getMessage());
         }
     }
 

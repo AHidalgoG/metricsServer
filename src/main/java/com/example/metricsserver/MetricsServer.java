@@ -63,7 +63,7 @@ public class MetricsServer {
     public void stop() {
         if (heartbeatService != null) {
             heartbeatService.stop(); // 🛑 Matamos el hilo del latido
-            System.out.println("Heartbeat detenido.");
+            Log.info("Heartbeat detenido.");
         }
 
         if (sessionCleaner != null) {
@@ -72,7 +72,7 @@ public class MetricsServer {
 
         if (server != null) {
             server.stop(0);
-            System.out.println("Servidor HTTP detenido.");
+            Log.info("Servidor HTTP detenido.");
         }
         // Detener el reloj al cerrar
         scheduler.shutdown();

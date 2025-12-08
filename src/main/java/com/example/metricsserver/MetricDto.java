@@ -24,21 +24,12 @@ public class MetricDto {
     @SerializedName(value = "diskUsage", alternate = {"diskPercent"})
     private double diskUsagePercent;
 
-    // DISCO - GB USADOS
-    @SerializedName(value = "diskUsedGb", alternate = {"diskUsed", "usedGb"})
-    private double diskUsedGb;
-
-    // DISCO - GB TOTALES
-    @SerializedName(value = "diskTotalGb", alternate = {"diskTotal", "totalGb"})
-    private double diskTotalGb;
-
     // Getters
     public String getTimestamp() { return timestamp; }
     public double getCpuUsage() { return cpuUsage; }
-    public double getTemperature() { return temperature; }
+    public Double getTemperature() { return temperature; }
     public double getRamUsage() { return ramUsage; }
 
     public double getDiskUsagePercent() { return diskUsagePercent; }
-    public double getDiskUsedGb() { return diskUsedGb; }
-    public double getDiskTotalGb() { return diskTotalGb; }
+
 }
