@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName;
 
 public class MetricDto {
 
-    // timestamp (acepta varios nombres)
+    // timestamp
     @SerializedName(value = "timestamp", alternate = {"tsUtc", "time", "date"})
     private String timestamp;
 
@@ -12,7 +12,7 @@ public class MetricDto {
     @SerializedName(value = "cpuUsage", alternate = {"cpu", "cpuTotal"})
     private double cpuUsage;
 
-    //temperatura de la CPU
+    // Temperatura
     @SerializedName(value = "temperature", alternate = {"temp", "cpuTemp"})
     private double temperature;
 
@@ -20,16 +20,43 @@ public class MetricDto {
     @SerializedName(value = "ramUsage", alternate = {"ram", "memUsedBytes"})
     private double ramUsage;
 
-    // DISCO - PORCENTAJE
-    @SerializedName(value = "diskUsage", alternate = {"diskPercent"})
+    //Tiempo de Actividad (0-100%)
+    @SerializedName(value = "diskPercent", alternate = {"diskUsage", "diskActivity"})
     private double diskUsagePercent;
 
+    // Velocidad I/O (Nuevos - En KB/s)
+    @SerializedName(value = "diskReadRate", alternate = {"diskRead", "readKb"})
+    private double diskReadRate;
+
+    @SerializedName(value = "diskWriteRate", alternate = {"diskWrite", "writeKb"})
+    private double diskWriteRate;
+
     // Getters
-    public String getTimestamp() { return timestamp; }
-    public double getCpuUsage() { return cpuUsage; }
-    public Double getTemperature() { return temperature; }
-    public double getRamUsage() { return ramUsage; }
+    public String getTimestamp() {
+        return timestamp;
+    }
 
-    public double getDiskUsagePercent() { return diskUsagePercent; }
+    public double getCpuUsage() {
+        return cpuUsage;
+    }
 
+    public Double getTemperature() {
+        return temperature;
+    }
+
+    public double getRamUsage() {
+        return ramUsage;
+    }
+
+    public double getDiskUsagePercent() {
+        return diskUsagePercent;
+    }
+
+    public double getDiskReadRate() {
+        return diskReadRate;
+    }
+
+    public double getDiskWriteRate() {
+        return diskWriteRate;
+    }
 }

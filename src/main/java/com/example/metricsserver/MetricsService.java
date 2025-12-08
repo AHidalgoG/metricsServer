@@ -53,20 +53,18 @@ public class MetricsService {
             return false;
         }
 
-        // 3. Disco % (Obligatorio 0-100)
+
+        // 3. Disco %
         if (!esValido(m.getDiskUsagePercent(), 0, 100)) {
-            Log.error("Validación fallida: Disco % inválido (" + m.getDiskUsagePercent() + ")");
+            Log.error("Validación fallida: Actividad Disco % inválida (" + m.getDiskUsagePercent() + ")");
             return false;
         }
 
-        // --- LOS CAMPOS NUEVOS AHORA SON OPCIONALES ---
-        // (Los comentamos para que no rechace la métrica si son null)
+        // 4. Validar I/O (Solo que no sean negativos)
+        if (!esValido(m.getDiskReadRate(), 0, Double.MAX_VALUE)) return false;
+        if (!esValido(m.getDiskWriteRate(), 0, Double.MAX_VALUE)) return false;
 
-        /* if (!esValido(m.getDiskTotalGb(), 1, 999999)) return false;
-        if (!esValido(m.getDiskUsedGb(), 0, Double.MAX_VALUE)) return false;
-        */
-
-        return true; // ✅ Todo aprobado
+        return true;
     }
 
     // Helper para verificar rangos y nulos

@@ -233,8 +233,9 @@ public class MetricsDao {
             List<Double> cpuValues = new ArrayList<>();
             List<Double> ramValues = new ArrayList<>();
             List<Double> tempValues = new ArrayList<>();
-            List<Double> diskPercentValues = new ArrayList<>();
-            List<Double> diskUsedGbValues = new ArrayList<>();
+            List<Double> diskActivityValues = new ArrayList<>();
+            List<Double> diskReadValues = new ArrayList<>();
+            List<Double> diskWriteValues = new ArrayList<>();
 
             try (PreparedStatement psRaw = conn.prepareStatement(sqlRaw);
                  PreparedStatement psRollup = conn.prepareStatement(sqlRollup);
@@ -264,10 +265,24 @@ public class MetricsDao {
                         insertarRaw(psRaw, idEquipo, "ram_usage", ramMb, fechaMuestra, idSesion);
                     }
                     // DISCO - PORCENTAJE
-                    if (mapaTipos.containsKey("disk_usage")) {
-                        double diskPercent = m.getDiskUsagePercent();
-                        diskPercentValues.add(diskPercent);
-                        insertarRaw(psRaw, idEquipo, "disk_usage", diskPercent, fechaMuestra, idSesion);
+                    if (mapaTipos.containsKey("disk_activity")) {
+                        double activity = m.getDiskUsagePercent();
+                        diskActivityValues.add(activity);
+                        insertarRaw(psRaw, idEquipo, "disk_activity", activity, fechaMuestra, idSesion);
+                    }
+
+                    // 2. LECTURA (KB/s)
+                    if (mapaTipos.containsKey("disk_read_kb")) {
+                        double read = m.getDiskReadRate();
+                        diskReadValues.add(read);
+                        insertarRaw(psRaw, idEquipo, "disk_read_kb", read, fechaMuestra, idSesion);
+                    }
+
+                    // 3. ESCRITURA (KB/s)
+                    if (mapaTipos.containsKey("disk_write_kb")) {
+                        double write = m.getDiskWriteRate();
+                        diskWriteValues.add(write);
+                        insertarRaw(psRaw, idEquipo, "disk_write_kb", write, fechaMuestra, idSesion);
                     }
 
                 }
@@ -277,10 +292,18 @@ public class MetricsDao {
                 // Esto reemplaza al 'procesarDatoIndividual' antiguo para las alertas y resumenes
                 generarRollup(psRollup, psAlerta, idEquipo, agentKey, "cpu_usage", cpuValues, fechaBase);
                 generarRollup(psRollup, psAlerta, idEquipo, agentKey, "ram_usage", ramValues, fechaBase);
-                generarRollup(psRollup, psAlerta, idEquipo, agentKey, "disk_usage", diskPercentValues, fechaBase);
 
                 if (!tempValues.isEmpty()) {
                     generarRollup(psRollup, psAlerta, idEquipo, agentKey, "cpu_temp", tempValues, fechaBase);
+                }
+                if (!diskActivityValues.isEmpty()) {
+                    generarRollup(psRollup, psAlerta, idEquipo, agentKey, "disk_activity", diskActivityValues, fechaBase);
+                }
+                if (!diskReadValues.isEmpty()) {
+                    generarRollup(psRollup, psAlerta, idEquipo, agentKey, "disk_read_kb", diskReadValues, fechaBase);
+                }
+                if (!diskWriteValues.isEmpty()) {
+                    generarRollup(psRollup, psAlerta, idEquipo, agentKey, "disk_write_kb", diskWriteValues, fechaBase);
                 }
 
                 psRollup.executeBatch(); // Enviamos los promedios
