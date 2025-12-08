@@ -8,3 +8,21 @@
 [13:03:51] [INFO] Config cargada -> ID: 4 | Clave: disk_used_gb | Umbral Max: 1000.0
 [13:03:51] [INFO] Config cargada -> ID: 5 | Clave: disk_total_gb | Umbral Max: 10000.0
 [13:03:52] [INFO] 🚀 MetricsServer nativo escuchando en puerto 8080
+[13:10:00] [INFO] Config cargada -> ID: 1 | Clave: cpu_usage | Umbral Max: 90.0
+[13:10:00] [INFO] Config cargada -> ID: 2 | Clave: ram_usage | Umbral Max: 14000.0
+[13:10:00] [INFO] Config cargada -> ID: 3 | Clave: disk_usage | Umbral Max: 300.0
+[13:10:00] [INFO] Config cargada -> ID: 4 | Clave: disk_used_gb | Umbral Max: 1000.0
+[13:10:00] [INFO] Config cargada -> ID: 5 | Clave: disk_total_gb | Umbral Max: 10000.0
+[13:10:00] [INFO] 🚀 MetricsServer nativo escuchando en puerto 8080
+[13:17:31] [INFO] Config cargada -> ID: 1 | Clave: cpu_usage | Umbral Max: 90.0
+[13:17:31] [INFO] Config cargada -> ID: 2 | Clave: ram_usage | Umbral Max: 14000.0
+[13:17:31] [INFO] Config cargada -> ID: 3 | Clave: disk_usage | Umbral Max: 300.0
+[13:17:31] [INFO] Config cargada -> ID: 4 | Clave: disk_used_gb | Umbral Max: 1000.0
+[13:17:31] [INFO] Config cargada -> ID: 5 | Clave: disk_total_gb | Umbral Max: 10000.0
+[13:17:32] [INFO] 🚀 MetricsServer nativo escuchando en puerto 8080
+[13:42:37] [INFO] Config cargada -> ID: 1 | Clave: cpu_usage | Umbral Max: 90.0
+[13:42:37] [INFO] Config cargada -> ID: 2 | Clave: ram_usage | Umbral Max: 14000.0
+[13:42:37] [INFO] Config cargada -> ID: 3 | Clave: disk_usage | Umbral Max: 300.0
+[13:42:37] [INFO] Config cargada -> ID: 4 | Clave: disk_used_gb | Umbral Max: 1000.0
+[13:42:37] [INFO] Config cargada -> ID: 5 | Clave: disk_total_gb | Umbral Max: 10000.0
+[13:42:37] [INFO] 🚀 MetricsServer nativo escuchando en puerto 8080

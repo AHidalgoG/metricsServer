@@ -232,6 +232,7 @@ public class MetricsDao {
             // Listas para calcular estadísticas en memoria (CPU, RAM, Disco)
             List<Double> cpuValues = new ArrayList<>();
             List<Double> ramValues = new ArrayList<>();
+            List<Double> tempValues = new ArrayList<>();
             List<Double> diskPercentValues = new ArrayList<>();
             List<Double> diskUsedGbValues = new ArrayList<>();
 
@@ -248,6 +249,14 @@ public class MetricsDao {
                         cpuValues.add(m.getCpuUsage());
                         insertarRaw(psRaw, idEquipo, "cpu_usage", m.getCpuUsage(), fechaMuestra, idSesion);
                     }
+
+                    //temperatura CPU
+                    if (mapaTipos.containsKey("cpu_temp") && m.getTemperature() > 0) {
+                        double temp = m.getTemperature();
+                        tempValues.add(temp);
+                        insertarRaw(psRaw, idEquipo, "cpu_temp", temp, fechaMuestra, idSesion);
+                    }
+
                     // RAM (Convertir a MB si viene en Bytes)
                     if (mapaTipos.containsKey("ram_usage")) {
                         double ramMb = m.getRamUsage() > 1000000 ? m.getRamUsage() / (1024 * 1024) : m.getRamUsage();
@@ -285,6 +294,10 @@ public class MetricsDao {
                 generarRollup(psRollup, psAlerta, idEquipo, agentKey, "disk_usage", diskPercentValues, fechaBase);
                 if (!diskUsedGbValues.isEmpty() && mapaTipos.containsKey("disk_used_gb")) {
                     generarRollup(psRollup, psAlerta, idEquipo, agentKey, "disk_used_gb", diskUsedGbValues, fechaBase);
+                }
+
+                if (!tempValues.isEmpty()) {
+                    generarRollup(psRollup, psAlerta, idEquipo, agentKey, "cpu_temp", tempValues, fechaBase);
                 }
 
                 psRollup.executeBatch(); // Enviamos los promedios

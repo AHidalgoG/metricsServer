@@ -12,6 +12,10 @@ public class MetricDto {
     @SerializedName(value = "cpuUsage", alternate = {"cpu", "cpuTotal"})
     private double cpuUsage;
 
+    //temperatura de la CPU
+    @SerializedName(value = "temperature", alternate = {"temp", "cpuTemp"})
+    private double temperature;
+
     // RAM
     @SerializedName(value = "ramUsage", alternate = {"ram", "memUsedBytes"})
     private double ramUsage;
@@ -31,6 +35,7 @@ public class MetricDto {
     // Getters
     public String getTimestamp() { return timestamp; }
     public double getCpuUsage() { return cpuUsage; }
+    public double getTemperature() { return temperature; }
     public double getRamUsage() { return ramUsage; }
 
     public double getDiskUsagePercent() { return diskUsagePercent; }
